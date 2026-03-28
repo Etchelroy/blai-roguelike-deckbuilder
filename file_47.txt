@@ -1,0 +1,221 @@
+# src/App.jsx
+import React, { useState, useCallback, useMemo } from 'react';
+import Map from './components/Map';
+import Combat from './components/Combat';
+import CardReward from './components/CardReward';
+import RestSite from './components/RestSite';
+import Shop from './components/Shop';
+import Event from './components/Event';
+import GameOver from './components/GameOver';
+import { generateMap } from './logic/mapGenerator';
+import { initCombat, playCard, endPlayerTurn, isCombatOver } from './logic/combat';
+import { starterDeck, getRandomRewardCards, getShopCards, upgradeCard } from './data/cards';
+import { getEnemiesForType } from './data/enemies';
+import { getRandomEvent } from './data/events';
+
+const SCREENS = { MAP: 'map', COMBAT: 'combat', REWARD: 'reward', REST: 'rest', SHOP: 'shop', EVENT: 'event', GAMEOVER: 'gameover' };
+
+function newGame() {
+  return {
+    deck: starterDeck.map(c => ({ ...c })),
+    player: { hp: 80, maxHp: 80, gold: 100, block: 0, effects: {} },
+    map: generateMap(15),
+    currentNode: null,
+    screen: SCREENS.MAP,
+    combatState: null,
+    rewardCards: null,
+    shopCards: null,
+    currentEvent: null,
+    upgradeMode: false,
+    gameResult: null,
+    floorsCleared: 0,
+  };
+}
+
+export default function App() {
+  const [game, setGame] = useState(newGame);
+
+  const selectNode = useCallback((floor, idx) => {
+    setGame(g => {
+      const node = g.map[floor][idx];
+      const key = `${floor}-${idx}`;
+      let next = { ...g, currentNode: key, floorsCleared: floor };
+
+      switch (node.type) {
+        case 'combat':
+        case 'elite':
+        case 'boss': {
+          const enemies = getEnemiesForType(node.type, floor);
+          const combatState = initCombat(next.deck, next.player, enemies);
+          return { ...next, screen: SCREENS.COMBAT, combatState };
+        }
+        case 'rest':
+          return { ...next, screen: SCREENS.REST, upgradeMode: false };
+        case 'shop':
+          return { ...next, screen: SCREENS.SHOP, shopCards: getShopCards(5) };
+        case 'event':
+          return { ...next, screen: SCREENS.EVENT, currentEvent: getRandomEvent() };
+        default:
+          return { ...next, screen: SCREENS.MAP };
+      }
+    });
+  }, []);
+
+  const onPlayCard = useCallback((card, targetIdx) => {
+    setGame(g => {
+      if (!g.combatState) return g;
+      let cs = playCard(g.combatState, card, targetIdx);
+      const result = isCombatOver(cs);
+      if (result === 'won') {
+        const rewards = getRandomRewardCards(3);
+        const gold = 15 + Math.floor(Math.random() * 20);
+        return {
+          ...g,
+          combatState: cs,
+          player: { ...g.player, hp: cs.player.hp, gold: g.player.gold + gold },
+          screen: SCREENS.REWARD,
+          rewardCards: rewards
+        };
+      }
+      if (result === 'lost') {
+        return { ...g, combatState: cs, player: { ...g.player, hp: 0 }, screen: SCREENS.GAMEOVER, gameResult: 'lost' };
+      }
+      return { ...g, combatState: cs };
+    });
+  }, []);
+
+  const onEndTurn = useCallback(() => {
+    setGame(g => {
+      if (!g.combatState) return g;
+      let cs = endPlayerTurn(g.combatState);
+      const result = isCombatOver(cs);
+      if (result === 'lost') {
+        return { ...g, combatState: cs, player: { ...g.player, hp: 0 }, screen: SCREENS.GAMEOVER, gameResult: 'lost' };
+      }
+      if (result === 'won') {
+        const rewards = getRandomRewardCards(3);
+        const gold = 15 + Math.floor(Math.random() * 20);
+        return {
+          ...g,
+          combatState: cs,
+          player: { ...g.player, hp: cs.player.hp, gold: g.player.gold + gold },
+          screen: SCREENS.REWARD,
+          rewardCards: rewards
+        };
+      }
+      return { ...g, combatState: cs };
+    });
+  }, []);
+
+  const onPickReward = useCallback((card) => {
+    setGame(g => {
+      const [floor] = g.currentNode.split('-').map(Number);
+      const isBoss = g.map[floor] && g.map[floor].length === 1 && g.map[floor][0].type === 'boss';
+      if (isBoss) {
+        return { ...g, deck: [...g.deck, { ...card }], screen: SCREENS.GAMEOVER, gameResult: 'won' };
+      }
+      return { ...g, deck: [...g.deck, { ...card }], screen: SCREENS.MAP, rewardCards: null, combatState: null };
+    });
+  }, []);
+
+  const onSkipReward = useCallback(() => {
+    setGame(g => {
+      const [floor] = g.currentNode.split('-').map(Number);
+      const isBoss = g.map[floor] && g.map[floor].length === 1 && g.map[floor][0].type === 'boss';
+      if (isBoss) {
+        return { ...g, screen: SCREENS.GAMEOVER, gameResult: 'won' };
+      }
+      return { ...g, screen: SCREENS.MAP, rewardCards: null, combatState: null };
+    });
+  }, []);
+
+  const onRest = useCallback(() => {
+    setGame(g => {
+      const healAmt = Math.floor(g.player.maxHp * 0.3);
+      return {
+        ...g,
+        player: { ...g.player, hp: Math.min(g.player.maxHp, g.player.hp + healAmt) },
+        screen: SCREENS.MAP
+      };
+    });
+  }, []);
+
+  const onStartUpgrade = useCallback(() => {
+    setGame(g => ({ ...g, upgradeMode: true }));
+  }, []);
+
+  const onSelectUpgrade = useCallback((card) => {
+    setGame(g => {
+      if (!card) return { ...g, upgradeMode: false };
+      const newDeck = g.deck.map(c => {
+        if (c === card || (c.id === card.id && !c.upgraded && c.name === card.name)) {
+          // Only upgrade first match
+          return null;
+        }
+        return c;
+      });
+      // Find and upgrade first null
+      let upgraded = false;
+      const finalDeck = newDeck.map(c => {
+        if (c === null && !upgraded) {
+          upgraded = true;
+          return upgradeCard(card);
+        }
+        return c;
+      });
+      return { ...g, deck: finalDeck, upgradeMode: false, screen: SCREENS.MAP };
+    });
+  }, []);
+
+  const onBuyCard = useCallback((idx) => {
+    setGame(g => {
+      const item = g.shopCards[idx];
+      if (!item || g.player.gold < item.price) return g;
+      return {
+        ...g,
+        deck: [...g.deck, { ...item.card }],
+        player: { ...g.player, gold: g.player.gold - item.price },
+        shopCards: g.shopCards.filter((_, i) => i !== idx)
+      };
+    });
+  }, []);
+
+  const onRemoveCard = useCallback((idx) => {
+    setGame(g => {
+      if (g.player.gold < 50) return g;
+      return {
+        ...g,
+        deck: g.deck.filter((_, i) => i !== idx),
+        player: { ...g.player, gold: g.player.gold - 50 }
+      };
+    });
+  }, []);
+
+  const onLeaveShop = useCallback(() => {
+    setGame(g => ({ ...g, screen: SCREENS.MAP, shopCards: null }));
+  }, []);
+
+  const onEventChoice = useCallback((choiceIdx) => {
+    setGame(g => {
+      const choice = g.currentEvent.choices[choiceIdx];
+      let player = { ...g.player };
+      if (choice.effect) {
+        switch (choice.effect.type) {
+          case 'heal':
+            player.hp = Math.min(player.maxHp, player.hp + choice.effect.value);
+            break;
+          case 'gold':
+            player.gold += choice.effect.value;
+            break;
+          case 'gamble_heal':
+            if (Math.random() > 0.5) player.hp = Math.min(player.maxHp, player.hp + choice.effect.heal);
+            else player.hp -= choice.effect.damage;
+            break;
+          case 'gold_damage':
+            player.gold += choice.effect.gold;
+            player.hp -= choice.effect.damage;
+            break;
+        }
+      }
+      if (player.hp <= 0) {
+        return { ...g, player, screen: SCREENS.GAMEOVER
