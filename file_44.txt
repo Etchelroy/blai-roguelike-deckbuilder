@@ -1,0 +1,82 @@
+# src/data/cards.js
+function makeCard(id, name, type, cost, effects, description, exhaust = false) {
+  return { id, name, type, cost, effects, description, exhaust, upgraded: false };
+}
+
+function upgrade(card) {
+  const c = { ...card, upgraded: true, effects: card.effects.map(e => ({ ...e })) };
+  c.effects = c.effects.map(e => {
+    if (e.type === 'damage') return { ...e, value: e.value + 3 };
+    if (e.type === 'damage_all') return { ...e, value: e.value + 3 };
+    if (e.type === 'block') return { ...e, value: e.value + 3 };
+    if (e.type === 'poison') return { ...e, value: e.value + 2 };
+    if (e.type === 'weak') return { ...e, value: e.value + 1 };
+    if (e.type === 'vulnerable') return { ...e, value: e.value + 1 };
+    if (e.type === 'strength') return { ...e, value: e.value + 1 };
+    if (e.type === 'heal') return { ...e, value: e.value + 2 };
+    return e;
+  });
+  c.description = generateDesc(c);
+  c.name = card.name;
+  return c;
+}
+
+function generateDesc(card) {
+  return card.effects.map(e => {
+    switch (e.type) {
+      case 'damage': return `Deal ${e.value} damage`;
+      case 'damage_all': return `Deal ${e.value} damage to ALL`;
+      case 'block': return `Gain ${e.value} block`;
+      case 'poison': return `Apply ${e.value} poison`;
+      case 'weak': return `Apply ${e.value} weak`;
+      case 'vulnerable': return `Apply ${e.value} vulnerable`;
+      case 'strength': return `Gain ${e.value} strength`;
+      case 'draw': return `Draw ${e.value} card(s)`;
+      case 'heal': return `Heal ${e.value} HP`;
+      case 'energy': return `Gain ${e.value} energy`;
+      default: return '';
+    }
+  }).join('. ');
+}
+
+export const allCards = [
+  makeCard('strike', 'Strike', 'attack', 1, [{ type: 'damage', value: 6 }], 'Deal 6 damage'),
+  makeCard('defend', 'Defend', 'skill', 1, [{ type: 'block', value: 5 }], 'Gain 5 block'),
+  makeCard('bash', 'Bash', 'attack', 2, [{ type: 'damage', value: 8 }, { type: 'vulnerable', value: 2 }], 'Deal 8 damage. Apply 2 vulnerable'),
+  makeCard('cleave', 'Cleave', 'attack', 1, [{ type: 'damage_all', value: 8 }], 'Deal 8 damage to ALL'),
+  makeCard('iron_wave', 'Iron Wave', 'attack', 1, [{ type: 'damage', value: 5 }, { type: 'block', value: 5 }], 'Deal 5 damage. Gain 5 block'),
+  makeCard('shrug', 'Shrug It Off', 'skill', 1, [{ type: 'block', value: 8 }, { type: 'draw', value: 1 }], 'Gain 8 block. Draw 1'),
+  makeCard('poisonstab', 'Poison Stab', 'attack', 1, [{ type: 'damage', value: 4 }, { type: 'poison', value: 3 }], 'Deal 4 damage. Apply 3 poison'),
+  makeCard('noxious', 'Noxious Fumes', 'power', 1, [{ type: 'poison', value: 3 }], 'Apply 3 poison', false),
+  makeCard('inflame', 'Inflame', 'power', 1, [{ type: 'strength', value: 2 }], 'Gain 2 strength', false),
+  makeCard('clothesline', 'Clothesline', 'attack', 2, [{ type: 'damage', value: 12 }, { type: 'weak', value: 2 }], 'Deal 12 damage. Apply 2 weak'),
+  makeCard('bodyslam', 'Body Slam', 'attack', 1, [{ type: 'damage', value: 5 }], 'Deal 5 damage'),
+  makeCard('pommelstrike', 'Pommel Strike', 'attack', 1, [{ type: 'damage', value: 9 }, { type: 'draw', value: 1 }], 'Deal 9 damage. Draw 1'),
+  makeCard('offering', 'Offering', 'skill', 0, [{ type: 'energy', value: 2 }, { type: 'draw', value: 3 }], 'Gain 2 energy. Draw 3', true),
+  makeCard('bandage', 'Bandage Up', 'skill', 1, [{ type: 'heal', value: 6 }], 'Heal 6 HP', true),
+];
+
+export const starterDeck = [
+  ...Array(4).fill(null).map(() => ({ ...allCards[0] })),
+  ...Array(4).fill(null).map(() => ({ ...allCards[1] })),
+  { ...allCards[2] },
+];
+
+export function getRandomRewardCards(count = 3) {
+  const pool = allCards.filter(c => c.id !== 'strike' && c.id !== 'defend');
+  const result = [];
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  for (let i = 0; i < count && i < shuffled.length; i++) {
+    result.push({ ...shuffled[i] });
+  }
+  return result;
+}
+
+export function getShopCards(count = 5) {
+  const cards = getRandomRewardCards(count);
+  return cards.map(c => ({ card: c, price: 50 + Math.floor(Math.random() * 50) }));
+}
+
+export function upgradeCard(card) {
+  return upgrade(card);
+}
