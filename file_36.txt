@@ -1,0 +1,17 @@
+# src/components/CardReward.jsx
+import React from 'react';
+import Card from './Card';
+
+export default function CardReward({ cards, onPick, onSkip }) {
+  return (
+    <div className="reward-screen">
+      <h2>Victory! Choose a card:</h2>
+      <div className="reward-cards">
+        {cards.map((card, i) => (
+          <Card key={i} card={card} onClick={() => onPick(card)} />
+        ))}
+      </div>
+      <button className="skip-btn" onClick={onSkip}>Skip</button>
+    </div>
+  );
+}
