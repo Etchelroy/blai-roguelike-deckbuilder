@@ -1,0 +1,226 @@
+# src/logic/combat.js
+import { calcAttackDamage, applyStartOfTurnEffects, applyEndOfTurnEffects, defaultEffects } from './statusEffects';
+
+let uidCounter = 0;
+function uid() { return ++uidCounter; }
+
+function tagCards(cards) {
+  return cards.map(c => ({ ...c, uid: uid() }));
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+export function initCombat(deck, player, enemyTemplates) {
+  uidCounter = 0;
+  const tagged = tagCards(deck);
+  const drawPile = shuffle(tagged);
+  const enemies = enemyTemplates.map((e, i) => ({
+    ...e,
+    id: e.id || `enemy_${i}`,
+    hp: e.hp,
+    maxHp: e.hp,
+    block: 0,
+    effects: defaultEffects(),
+    currentIntent: null
+  }));
+  
+  const state = {
+    player: { ...player, block: 0, effects: { ...defaultEffects(), ...(player.effects || {}) } },
+    enemies,
+    hand: [],
+    drawPile,
+    discardPile: [],
+    exhaustPile: [],
+    energy: 3,
+    maxEnergy: 3,
+    turn: 1
+  };
+  
+  // Set initial intents
+  state.enemies = state.enemies.map(e => ({ ...e, currentIntent: getIntent(e, state.turn) }));
+  
+  return drawCards(state, 5);
+}
+
+function getIntent(enemy, turn) {
+  if (!enemy.moveset || enemy.moveset.length === 0) {
+    return { type: 'attack', value: 6 };
+  }
+  const move = enemy.moveset[(turn - 1) % enemy.moveset.length];
+  return { ...move };
+}
+
+function drawCards(state, count) {
+  let s = { ...state, hand: [...state.hand], drawPile: [...state.drawPile], discardPile: [...state.discardPile] };
+  for (let i = 0; i < count; i++) {
+    if (s.drawPile.length === 0) {
+      if (s.discardPile.length === 0) break;
+      s.drawPile = shuffle(s.discardPile);
+      s.discardPile = [];
+    }
+    s.hand.push(s.drawPile.pop());
+  }
+  return s;
+}
+
+export function playCard(state, card, targetIdx) {
+  if (card.cost > state.energy) return state;
+  
+  let s = {
+    ...state,
+    energy: state.energy - card.cost,
+    hand: state.hand.filter(c => c.uid !== card.uid),
+    player: { ...state.player, effects: { ...state.player.effects } },
+    enemies: state.enemies.map(e => ({ ...e, effects: { ...e.effects } })),
+    discardPile: [...state.discardPile],
+    exhaustPile: [...state.exhaustPile]
+  };
+
+  const target = s.enemies[targetIdx] || s.enemies.find(e => e.hp > 0);
+  
+  // Apply card effects
+  if (card.effects) {
+    for (const eff of card.effects) {
+      switch (eff.type) {
+        case 'damage': {
+          if (target) {
+            const dmg = calcAttackDamage(eff.value, s.player, target);
+            const afterBlock = Math.max(0, dmg - target.block);
+            target.block = Math.max(0, target.block - dmg);
+            target.hp -= afterBlock;
+          }
+          break;
+        }
+        case 'damage_all': {
+          s.enemies = s.enemies.map(e => {
+            if (e.hp <= 0) return e;
+            const dmg = calcAttackDamage(eff.value, s.player, e);
+            const afterBlock = Math.max(0, dmg - e.block);
+            return { ...e, block: Math.max(0, e.block - dmg), hp: e.hp - afterBlock };
+          });
+          break;
+        }
+        case 'block': {
+          s.player.block += eff.value;
+          break;
+        }
+        case 'poison': {
+          if (target) target.effects.poison += eff.value;
+          break;
+        }
+        case 'weak': {
+          if (target) target.effects.weak += eff.value;
+          break;
+        }
+        case 'vulnerable': {
+          if (target) target.effects.vulnerable += eff.value;
+          break;
+        }
+        case 'strength': {
+          s.player.effects.strength += eff.value;
+          break;
+        }
+        case 'draw': {
+          s = drawCards(s, eff.value);
+          break;
+        }
+        case 'heal': {
+          s.player.hp = Math.min(s.player.maxHp, s.player.hp + eff.value);
+          break;
+        }
+        case 'energy': {
+          s.energy += eff.value;
+          break;
+        }
+      }
+    }
+  }
+
+  if (card.exhaust) {
+    s.exhaustPile = [...s.exhaustPile, card];
+  } else {
+    s.discardPile = [...s.discardPile, card];
+  }
+
+  return s;
+}
+
+export function endPlayerTurn(state) {
+  let s = {
+    ...state,
+    discardPile: [...state.discardPile, ...state.hand],
+    hand: [],
+    player: { ...state.player },
+    enemies: state.enemies.map(e => ({ ...e }))
+  };
+
+  // Enemy actions
+  s.enemies = s.enemies.map(enemy => {
+    if (enemy.hp <= 0) return enemy;
+    const e = { ...enemy, effects: { ...enemy.effects } };
+    
+    // Apply start of turn for enemy (poison etc)
+    const afterStatus = applyStartOfTurnEffects(e);
+    
+    if (afterStatus.hp <= 0) return afterStatus;
+    
+    const intent = afterStatus.currentIntent;
+    if (intent) {
+      switch (intent.type) {
+        case 'attack': {
+          const dmg = calcAttackDamage(intent.value, afterStatus, s.player);
+          const afterBlock = Math.max(0, dmg - s.player.block);
+          s.player.block = Math.max(0, s.player.block - dmg);
+          s.player.hp -= afterBlock;
+          break;
+        }
+        case 'defend': {
+          afterStatus.block += intent.value || 8;
+          break;
+        }
+        case 'buff': {
+          afterStatus.effects.strength = (afterStatus.effects.strength || 0) + (intent.value || 2);
+          break;
+        }
+        case 'debuff': {
+          if (intent.effect === 'weak') s.player.effects.weak += (intent.value || 2);
+          else if (intent.effect === 'vulnerable') s.player.effects.vulnerable += (intent.value || 2);
+          else s.player.effects.weak += 2;
+          break;
+        }
+      }
+    }
+    
+    return applyEndOfTurnEffects(afterStatus);
+  });
+
+  // Player start of new turn
+  s.player.block = 0;
+  s.player = applyEndOfTurnEffects(s.player);
+  s.turn = state.turn + 1;
+  s.energy = s.maxEnergy;
+
+  // New intents
+  s.enemies = s.enemies.map(e => {
+    if (e.hp <= 0) return e;
+    return { ...e, block: 0, currentIntent: getIntent(e, s.turn) };
+  });
+
+  // Draw new hand
+  s = drawCards(s, 5);
+
+  return s;
+}
+
+export function isCombatOver(state) {
+  if (state.player.hp <= 0) return 'lost';
+  if (state.enemies.every(e => e.hp <= 0)) return 'won';
+  return false;
+}
