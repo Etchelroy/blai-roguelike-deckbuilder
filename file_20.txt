@@ -1,0 +1,28 @@
+# src/components/Card.jsx
+import React from 'react';
+
+const typeColors = {
+  attack: '#e74c3c',
+  skill: '#3498db',
+  power: '#e67e22',
+};
+
+export default function Card({ card, playable, onClick, showUpgrade, onUpgrade, showPrice, onBuy, onRemove }) {
+  const border = playable === false ? '2px solid #555' : `2px solid ${typeColors[card.type] || '#fff'}`;
+  
+  return (
+    <div
+      className={`card ${playable ? 'playable' : ''} ${card.upgraded ? 'upgraded' : ''}`}
+      style={{ borderColor: typeColors[card.type] || '#fff' }}
+      onClick={playable !== false ? onClick : undefined}
+    >
+      <div className="card-cost">{card.cost}</div>
+      <div className="card-name">{card.name}{card.upgraded ? '+' : ''}</div>
+      <div className="card-type">{card.type}</div>
+      <div className="card-desc">{card.description}</div>
+      {showUpgrade && <button className="card-upgrade-btn" onClick={onUpgrade}>Upgrade</button>}
+      {showPrice != null && <button className="card-buy-btn" onClick={onBuy}>Buy ({showPrice}g)</button>}
+      {onRemove && <button className="card-remove-btn" onClick={onRemove}>Remove (50g)</button>}
+    </div>
+  );
+}
