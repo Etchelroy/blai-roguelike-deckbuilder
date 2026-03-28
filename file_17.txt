@@ -1,0 +1,189 @@
+import React, { useState, useCallback } from 'react'
+import StartScreen from './components/StartScreen'
+import MapScreen from './components/MapScreen'
+import CombatScreen from './components/CombatScreen'
+import RewardScreen from './components/RewardScreen'
+import RestScreen from './components/RestScreen'
+import ShopScreen from './components/ShopScreen'
+import EventScreen from './components/EventScreen'
+import EndScreen from './components/EndScreen'
+import DeckViewer from './components/DeckViewer'
+import { getStarterDeck } from './data/cards'
+import { generateMap } from './logic/mapGenerator'
+import { getRandomEnemies, getEliteEnemy, getBoss } from './data/enemies'
+
+const initialGameState = () => ({
+  phase: 'start', // start, map, combat, reward, rest, shop, event, end
+  deck: getStarterDeck(),
+  map: generateMap(),
+  currentFloor: -1,
+  currentNodeId: null,
+  visitedNodes: new Set(),
+  availableNodes: new Set(),
+  playerHp: 80,
+  playerMaxHp: 80,
+  gold: 100,
+  enemies: [],
+  combatType: 'combat',
+  won: false,
+  floorsCleared: 0,
+  monstersKilled: 0,
+  showDeck: false,
+})
+
+export default function App() {
+  const [game, setGame] = useState(initialGameState())
+
+  const startGame = useCallback(() => {
+    const g = initialGameState()
+    g.phase = 'map'
+    g.currentFloor = -1
+    // First floor nodes are available
+    g.map[0].forEach(n => g.availableNodes.add(n.id))
+    setGame(g)
+  }, [])
+
+  const selectNode = useCallback((nodeId) => {
+    setGame(prev => {
+      const g = {...prev, visitedNodes: new Set(prev.visitedNodes), availableNodes: new Set(prev.availableNodes)}
+      let node = null
+      let floor = -1
+      for(let f=0;f<g.map.length;f++) {
+        const n = g.map[f].find(n=>n.id===nodeId)
+        if(n) { node=n; floor=f; break }
+      }
+      if(!node || !g.availableNodes.has(nodeId)) return prev
+      
+      g.visitedNodes.add(nodeId)
+      g.currentNodeId = nodeId
+      g.currentFloor = floor
+      
+      // Update available: only connected nodes from this node
+      g.availableNodes = new Set()
+      node.connections.forEach(id => g.availableNodes.add(id))
+      
+      g.floorsCleared = floor
+      
+      switch(node.type) {
+        case 'combat':
+          g.enemies = getRandomEnemies(Math.random()>0.5?1:2)
+          g.combatType = 'combat'
+          g.phase = 'combat'
+          break
+        case 'elite':
+          g.enemies = getEliteEnemy()
+          g.combatType = 'elite'
+          g.phase = 'combat'
+          break
+        case 'boss':
+          g.enemies = getBoss()
+          g.combatType = 'boss'
+          g.phase = 'combat'
+          break
+        case 'rest':
+          g.phase = 'rest'
+          break
+        case 'shop':
+          g.phase = 'shop'
+          break
+        case 'event':
+          g.phase = 'event'
+          break
+      }
+      return g
+    })
+  }, [])
+
+  const combatEnd = useCallback((won, hp) => {
+    setGame(prev => {
+      if(!won) return {...prev, phase:'end', won:false, playerHp:0}
+      const g = {...prev, playerHp: hp, monstersKilled: prev.monstersKilled + prev.enemies.length}
+      if(prev.combatType==='boss') {
+        return {...g, phase:'end', won:true}
+      }
+      g.gold += prev.combatType==='elite' ? 50 : 25
+      g.phase = 'reward'
+      return g
+    })
+  }, [])
+
+  const addCardToDeck = useCallback((card) => {
+    setGame(prev => ({...prev, deck:[...prev.deck, card], phase:'map'}))
+  }, [])
+
+  const skipReward = useCallback(() => {
+    setGame(prev => ({...prev, phase:'map'}))
+  }, [])
+
+  const restAction = useCallback((action, data) => {
+    setGame(prev => {
+      const g = {...prev}
+      if(action==='heal') {
+        g.playerHp = Math.min(g.playerMaxHp, g.playerHp + Math.floor(g.playerMaxHp * 0.3))
+      } else if(action==='upgrade' && data) {
+        g.deck = g.deck.map(c => c.uid === data.uid ? data : c)
+      }
+      g.phase = 'map'
+      return g
+    })
+  }, [])
+
+  const shopAction = useCallback((action, data) => {
+    setGame(prev => {
+      const g = {...prev}
+      if(action==='buy' && data) {
+        if(g.gold >= data.price) {
+          g.gold -= data.price
+          g.deck = [...g.deck, {...data}]
+        }
+      } else if(action==='remove' && data) {
+        if(g.gold >= 75) {
+          g.gold -= 75
+          g.deck = g.deck.filter(c=>c.uid !== data.uid)
+        }
+      }
+      return g
+    })
+  }, [])
+
+  const shopDone = useCallback(() => {
+    setGame(prev => ({...prev, phase:'map'}))
+  }, [])
+
+  const eventChoice = useCallback((effect) => {
+    setGame(prev => {
+      const g = {...prev}
+      if(effect.hp) g.playerHp = Math.max(1, Math.min(g.playerMaxHp, g.playerHp + effect.hp))
+      if(effect.gold) g.gold = Math.max(0, g.gold + effect.gold)
+      if(effect.maxHp) { g.playerMaxHp += effect.maxHp; g.playerHp += effect.maxHp }
+      g.phase = 'map'
+      return g
+    })
+  }, [])
+
+  const toggleDeck = useCallback(() => {
+    setGame(prev => ({...prev, showDeck: !prev.showDeck}))
+  }, [])
+
+  return (
+    <div className="app">
+      {game.showDeck && <DeckViewer deck={game.deck} onClose={toggleDeck}/>}
+      
+      {game.phase==='start' && <StartScreen onStart={startGame}/>}
+      
+      {game.phase==='map' && (
+        <MapScreen
+          map={game.map}
+          visitedNodes={game.visitedNodes}
+          availableNodes={game.availableNodes}
+          currentNodeId={game.currentNodeId}
+          onSelectNode={selectNode}
+          playerHp={game.playerHp}
+          playerMaxHp={game.playerMaxHp}
+          gold={game.gold}
+          onViewDeck={toggleDeck}
+        />
+      )}
+      
+      {game.phase==='combat' && (
+        
