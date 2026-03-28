@@ -1,0 +1,42 @@
+# src/data/events.js
+const EVENTS = [
+  {
+    name: 'Mysterious Shrine',
+    description: 'You find a glowing shrine in the darkness. It pulses with energy.',
+    choices: [
+      { text: 'Pray (+10 HP)', effect: { hp: 10 } },
+      { text: 'Smash it (+50 gold)', effect: { gold: 50 } },
+      { text: 'Leave' },
+    ],
+  },
+  {
+    name: 'Wandering Merchant',
+    description: 'A cloaked figure offers you a deal.',
+    choices: [
+      { text: 'Trade HP for gold (-10 HP, +80 gold)', effect: { hp: -10, gold: 80 } },
+      { text: 'Trade gold for HP (-50 gold, +20 HP)', effect: { gold: -50, hp: 20 } },
+      { text: 'Decline' },
+    ],
+  },
+  {
+    name: 'Forgotten Library',
+    description: 'Dusty tomes line ancient shelves. You could study... or burn them.',
+    choices: [
+      { text: 'Study (+5 Max HP)', effect: { maxHp: 5 } },
+      { text: 'Burn a random card from your deck', effect: { removeRandom: true } },
+      { text: 'Leave' },
+    ],
+  },
+  {
+    name: 'Cursed Spring',
+    description: 'A bubbling spring of dark water. It smells foul but you feel drawn to it.',
+    choices: [
+      { text: 'Drink (Heal to full, lose 10 max HP)', effect: { hp: 999, maxHp: -10 } },
+      { text: 'Walk away' },
+    ],
+  },
+];
+
+export function getRandomEvent() {
+  return { ...EVENTS[Math.floor(Math.random() * EVENTS.length)] };
+}
