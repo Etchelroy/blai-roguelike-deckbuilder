@@ -1,0 +1,275 @@
+# src/App.jsx
+import React, { useState, useCallback, useEffect } from 'react';
+import { generateMap } from './logic/mapGenerator';
+import { initCombat, drawCards, playCard, endPlayerTurn, checkCombatEnd } from './logic/combat';
+import { ALL_CARDS, getStarterDeck, getRandomCards, upgradeCard } from './data/cards';
+import { getEnemy, getEliteEnemy, getBoss } from './data/enemies';
+import { getRandomEvent } from './data/events';
+import Map from './components/Map';
+import Combat from './components/Combat';
+import CardReward from './components/CardReward';
+import RestSite from './components/RestSite';
+import Shop from './components/Shop';
+import Event from './components/Event';
+import GameOver from './components/GameOver';
+
+const SCREENS = {
+  TITLE: 'title',
+  MAP: 'map',
+  COMBAT: 'combat',
+  REWARD: 'reward',
+  REST: 'rest',
+  SHOP: 'shop',
+  EVENT: 'event',
+  GAME_OVER: 'game_over',
+};
+
+function generateShopCards() {
+  const cards = getRandomCards(5);
+  return cards.map(c => ({ card: { ...c }, price: 50 + Math.floor(Math.random() * 50) }));
+}
+
+export default function App() {
+  const [screen, setScreen] = useState(SCREENS.TITLE);
+  const [map, setMap] = useState([]);
+  const [currentNode, setCurrentNode] = useState(null);
+  const [player, setPlayer] = useState({ hp: 80, maxHp: 80, block: 0, poison: 0, weak: 0, vulnerable: 0, strength: 0 });
+  const [deck, setDeck] = useState([]);
+  const [gold, setGold] = useState(100);
+  const [combat, setCombat] = useState(null);
+  const [rewardCards, setRewardCards] = useState([]);
+  const [currentEvent, setCurrentEvent] = useState(null);
+  const [shopCards, setShopCards] = useState([]);
+  const [victory, setVictory] = useState(false);
+  const [floorsCleared, setFloorsCleared] = useState(0);
+  const [targetSelect, setTargetSelect] = useState(null);
+
+  const startRun = () => {
+    const newMap = generateMap();
+    const starterDeck = getStarterDeck();
+    setMap(newMap);
+    setCurrentNode(null);
+    setPlayer({ hp: 80, maxHp: 80, block: 0, poison: 0, weak: 0, vulnerable: 0, strength: 0 });
+    setDeck(starterDeck);
+    setGold(100);
+    setCombat(null);
+    setVictory(false);
+    setFloorsCleared(0);
+    setScreen(SCREENS.MAP);
+  };
+
+  const enterNode = (node) => {
+    node.visited = true;
+    setCurrentNode(node);
+    setFloorsCleared(f => Math.max(f, node.floor));
+
+    switch (node.type) {
+      case 'combat': {
+        const enemies = [getEnemy()];
+        const cs = initCombat([...deck], { ...player }, enemies);
+        setCombat(cs);
+        setScreen(SCREENS.COMBAT);
+        break;
+      }
+      case 'elite': {
+        const enemies = [getEliteEnemy()];
+        const cs = initCombat([...deck], { ...player }, enemies);
+        setCombat(cs);
+        setScreen(SCREENS.COMBAT);
+        break;
+      }
+      case 'boss': {
+        const enemies = [getBoss()];
+        const cs = initCombat([...deck], { ...player }, enemies);
+        setCombat(cs);
+        setScreen(SCREENS.COMBAT);
+        break;
+      }
+      case 'rest':
+        setScreen(SCREENS.REST);
+        break;
+      case 'shop':
+        setShopCards(generateShopCards());
+        setScreen(SCREENS.SHOP);
+        break;
+      case 'event':
+        setCurrentEvent(getRandomEvent());
+        setScreen(SCREENS.EVENT);
+        break;
+    }
+  };
+
+  const handlePlayCard = (cardIndex, targetIndex) => {
+    if (!combat) return;
+    const result = playCard(combat, cardIndex, targetIndex);
+    setCombat({ ...result });
+
+    const end = checkCombatEnd(result);
+    if (end === 'win') {
+      setPlayer(p => ({ ...p, hp: result.player.hp, block: 0, poison: result.player.poison, weak: 0, vulnerable: 0, strength: result.player.strength }));
+      const goldGain = currentNode.type === 'elite' ? 40 + Math.floor(Math.random() * 20) : currentNode.type === 'boss' ? 100 : 15 + Math.floor(Math.random() * 10);
+      setGold(g => g + goldGain);
+      if (currentNode.type === 'boss') {
+        setVictory(true);
+        setScreen(SCREENS.GAME_OVER);
+      } else {
+        setRewardCards(getRandomCards(3));
+        setScreen(SCREENS.REWARD);
+      }
+    } else if (end === 'lose') {
+      setPlayer(p => ({ ...p, hp: 0 }));
+      setVictory(false);
+      setScreen(SCREENS.GAME_OVER);
+    }
+  };
+
+  const handleEndTurn = () => {
+    if (!combat) return;
+    const result = endPlayerTurn(combat);
+    setCombat({ ...result });
+
+    const end = checkCombatEnd(result);
+    if (end === 'lose') {
+      setPlayer(p => ({ ...p, hp: 0 }));
+      setVictory(false);
+      setScreen(SCREENS.GAME_OVER);
+    } else if (end === 'win') {
+      setPlayer(p => ({ ...p, hp: result.player.hp, block: 0, poison: result.player.poison, weak: 0, vulnerable: 0, strength: result.player.strength }));
+      const goldGain = currentNode.type === 'elite' ? 40 : 15;
+      setGold(g => g + goldGain);
+      if (currentNode.type === 'boss') {
+        setVictory(true);
+        setScreen(SCREENS.GAME_OVER);
+      } else {
+        setRewardCards(getRandomCards(3));
+        setScreen(SCREENS.REWARD);
+      }
+    }
+  };
+
+  const handlePickReward = (card) => {
+    setDeck(d => [...d, { ...card }]);
+    setScreen(SCREENS.MAP);
+  };
+
+  const handleRest = () => {
+    setPlayer(p => ({ ...p, hp: Math.min(p.maxHp, p.hp + Math.floor(p.maxHp * 0.3)) }));
+    setScreen(SCREENS.MAP);
+  };
+
+  const handleUpgradeCard = (card) => {
+    setDeck(d => d.map(c => c === card ? upgradeCard(c) : c));
+    setScreen(SCREENS.MAP);
+  };
+
+  const handleBuyCard = (index) => {
+    const item = shopCards[index];
+    if (gold >= item.price) {
+      setGold(g => g - item.price);
+      setDeck(d => [...d, { ...item.card }]);
+      setShopCards(sc => sc.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleRemoveCard = (index) => {
+    if (gold >= 50) {
+      setGold(g => g - 50);
+      setDeck(d => d.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleEventChoice = (choiceIndex) => {
+    if (!currentEvent) return;
+    const choice = currentEvent.choices[choiceIndex];
+    if (choice.effect) {
+      const e = choice.effect;
+      setPlayer(p => ({
+        ...p,
+        hp: Math.min(p.maxHp, Math.max(0, p.hp + (e.hp || 0))),
+        maxHp: p.maxHp + (e.maxHp || 0),
+      }));
+      if (e.gold) setGold(g => g + e.gold);
+      if (e.card) setDeck(d => [...d, { ...e.card }]);
+      if (e.removeRandom && deck.length > 0) {
+        const ri = Math.floor(Math.random() * deck.length);
+        setDeck(d => d.filter((_, i) => i !== ri));
+      }
+    }
+    if (player.hp + (choice.effect?.hp || 0) <= 0) {
+      setVictory(false);
+      setScreen(SCREENS.GAME_OVER);
+    } else {
+      setScreen(SCREENS.MAP);
+    }
+  };
+
+  return (
+    <div className="app">
+      {screen === SCREENS.TITLE && (
+        <div className="title-screen">
+          <h1>⚔️ Spire of Shadows</h1>
+          <img src="https://picsum.photos/seed/darkspire/300/200" alt="spire" className="title-img" />
+          <button className="start-btn" onClick={startRun}>Begin Run</button>
+        </div>
+      )}
+
+      {screen === SCREENS.MAP && (
+        <div>
+          <div className="top-bar">
+            <span>❤️ {player.hp}/{player.maxHp}</span>
+            <span>💰 {gold}</span>
+            <span>📚 Deck: {deck.length}</span>
+          </div>
+          <Map map={map} currentNode={currentNode} onSelectNode={enterNode} />
+        </div>
+      )}
+
+      {screen === SCREENS.COMBAT && combat && (
+        <Combat
+          state={combat}
+          onPlayCard={handlePlayCard}
+          onEndTurn={handleEndTurn}
+        />
+      )}
+
+      {screen === SCREENS.REWARD && (
+        <CardReward cards={rewardCards} onPick={handlePickReward} onSkip={() => setScreen(SCREENS.MAP)} />
+      )}
+
+      {screen === SCREENS.REST && (
+        <RestSite
+          player={player}
+          deck={deck}
+          onRest={handleRest}
+          onUpgrade={handleUpgradeCard}
+          onLeave={() => setScreen(SCREENS.MAP)}
+        />
+      )}
+
+      {screen === SCREENS.SHOP && (
+        <Shop
+          shopCards={shopCards}
+          deck={deck}
+          gold={gold}
+          onBuyCard={handleBuyCard}
+          onRemoveCard={handleRemoveCard}
+          onLeave={() => setScreen(SCREENS.MAP)}
+        />
+      )}
+
+      {screen === SCREENS.EVENT && currentEvent && (
+        <Event event={currentEvent} onChoice={handleEventChoice} />
+      )}
+
+      {screen === SCREENS.GAME_OVER && (
+        <GameOver
+          victory={victory}
+          player={player}
+          deck={deck}
+          floorsCleared={floorsCleared}
+          onRestart={startRun}
+        />
+      )}
+    </div>
+  );
+}
