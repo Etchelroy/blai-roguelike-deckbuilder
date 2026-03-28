@@ -1,0 +1,84 @@
+# src/data/enemies.js
+function makeEnemy(template) {
+  return { ...template, block: 0, poison: 0, weak: 0, vulnerable: 0, strength: 0 };
+}
+
+const ENEMIES = [
+  { name: 'Slime', hp: 28, maxHp: 28, moves: [
+    { type: 'attack', damage: 8 },
+    { type: 'defend', block: 6 },
+    { type: 'attack', damage: 5 },
+  ]},
+  { name: 'Cultist', hp: 50, maxHp: 50, moves: [
+    { type: 'buff', strength: 3 },
+    { type: 'attack', damage: 6 },
+    { type: 'attack', damage: 6 },
+  ]},
+  { name: 'Fungus', hp: 35, maxHp: 35, moves: [
+    { type: 'debuff', weak: 2 },
+    { type: 'attack', damage: 7 },
+    { type: 'attack', damage: 10 },
+  ]},
+  { name: 'Goblin', hp: 22, maxHp: 22, moves: [
+    { type: 'attack', damage: 10 },
+    { type: 'attack', damage: 6 },
+    { type: 'defend', block: 8 },
+  ]},
+];
+
+const ELITES = [
+  { name: 'Gremlin Nob', hp: 82, maxHp: 82, moves: [
+    { type: 'attack', damage: 14 },
+    { type: 'buff', strength: 2 },
+    { type: 'attack', damage: 14 },
+    { type: 'attack', damage: 18 },
+  ]},
+  { name: 'Lagavulin', hp: 112, maxHp: 112, moves: [
+    { type: 'debuff', weak: 1, vulnerable: 1 },
+    { type: 'attack', damage: 18 },
+    { type: 'attack', damage: 18 },
+    { type: 'defend', block: 10 },
+  ]},
+];
+
+const BOSSES = [
+  { name: 'The Guardian', hp: 180, maxHp: 180, moves: [
+    { type: 'attack', damage: 20 },
+    { type: 'defend', block: 15 },
+    { type: 'attack', damage: 12 },
+    { type: 'buff', strength: 4 },
+    { type: 'attack', damage: 25 },
+  ]},
+  { name: 'Hexaghost', hp: 220, maxHp: 220, moves: [
+    { type: 'attack', damage: 6 },
+    { type: 'attack', damage: 6 },
+    { type: 'buff', strength: 2 },
+    { type: 'attack', damage: 15 },
+    { type: 'defend', block: 12 },
+    { type: 'attack', damage: 20 },
+  ]},
+];
+
+export function getEnemy() {
+  const e = ENEMIES[Math.floor(Math.random() * ENEMIES.length)];
+  const enemy = makeEnemy({ ...e, moves: [...e.moves] });
+  enemy.moveIndex = 0;
+  enemy.intent = enemy.moves[0];
+  return enemy;
+}
+
+export function getEliteEnemy() {
+  const e = ELITES[Math.floor(Math.random() * ELITES.length)];
+  const enemy = makeEnemy({ ...e, moves: [...e.moves] });
+  enemy.moveIndex = 0;
+  enemy.intent = enemy.moves[0];
+  return enemy;
+}
+
+export function getBoss() {
+  const e = BOSSES[Math.floor(Math.random() * BOSSES.length)];
+  const enemy = makeEnemy({ ...e, moves: [...e.moves] });
+  enemy.moveIndex = 0;
+  enemy.intent = enemy.moves[0];
+  return enemy;
+}
