@@ -1,0 +1,181 @@
+# src/logic/combat.js
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+export function initCombat(deck, player, enemies) {
+  const drawPile = shuffle(deck.map(c => ({ ...c })));
+  const state = {
+    player: { ...player, block: 0 },
+    enemies: enemies.map(e => ({ ...e })),
+    hand: [],
+    drawPile,
+    discardPile: [],
+    exhaustPile: [],
+    energy: 3,
+    maxEnergy: 3,
+    turn: 1,
+    powers: [],
+  };
+  drawToHand(state, 5);
+  return state;
+}
+
+function drawToHand(state, count) {
+  for (let i = 0; i < count; i++) {
+    if (state.drawPile.length === 0) {
+      if (state.discardPile.length === 0) break;
+      state.drawPile = shuffle(state.discardPile);
+      state.discardPile = [];
+    }
+    state.hand.push(state.drawPile.pop());
+  }
+}
+
+export function drawCards(state, count) {
+  drawToHand(state, count);
+  return state;
+}
+
+function calcDamage(base, attacker, defender) {
+  let dmg = base + (attacker.strength || 0);
+  if (attacker.weak > 0) dmg = Math.floor(dmg * 0.75);
+  if (defender.vulnerable > 0) dmg = Math.floor(dmg * 1.5);
+  return Math.max(0, dmg);
+}
+
+function applyDamage(target, damage) {
+  let remaining = damage;
+  if (target.block > 0) {
+    if (target.block >= remaining) {
+      target.block -= remaining;
+      remaining = 0;
+    } else {
+      remaining -= target.block;
+      target.block = 0;
+    }
+  }
+  target.hp -= remaining;
+}
+
+export function playCard(state, cardIndex, targetIndex) {
+  const card = state.hand[cardIndex];
+  if (!card || state.energy < card.cost) return state;
+
+  state.energy -= card.cost;
+  state.hand.splice(cardIndex, 1);
+
+  const target = state.enemies[targetIndex] || state.enemies.find(e => e.hp > 0);
+
+  // Attack cards
+  if (card.type === 'attack') {
+    if (card.bodySlam) {
+      const dmg = state.player.block;
+      if (target) applyDamage(target, dmg);
+    } else if (card.aoe) {
+      state.enemies.forEach(e => {
+        if (e.hp > 0) {
+          const dmg = calcDamage(card.damage, state.player, e);
+          applyDamage(e, dmg);
+        }
+      });
+    } else if (target && target.hp > 0) {
+      const dmg = calcDamage(card.damage, state.player, target);
+      applyDamage(target, dmg);
+    }
+
+    if (card.poison && target && target.hp > 0) {
+      target.poison = (target.poison || 0) + card.poison;
+    }
+    if (card.vulnerable && target && target.hp > 0) {
+      target.vulnerable = (target.vulnerable || 0) + card.vulnerable;
+    }
+    if (card.weak && target) {
+      target.weak = (target.weak || 0) + card.weak;
+    }
+  }
+
+  // Block
+  if (card.block) {
+    state.player.block += card.block;
+  }
+
+  // Skill effects
+  if (card.type === 'skill') {
+    if (card.weak && target) {
+      const t = target.hp > 0 ? target : state.enemies.find(e => e.hp > 0);
+      if (t) t.weak = (t.weak || 0) + card.weak;
+    }
+    if (card.vulnerable && target) {
+      const t = target.hp > 0 ? target : state.enemies.find(e => e.hp > 0);
+      if (t) t.vulnerable = (t.vulnerable || 0) + card.vulnerable;
+    }
+  }
+
+  // Power cards
+  if (card.type === 'power') {
+    if (card.strength) {
+      state.player.strength = (state.player.strength || 0) + card.strength;
+    }
+    if (card.poisonAll) {
+      state.powers.push({ type: 'poisonAll', value: card.poisonAll });
+    }
+    // Powers are exhausted
+    state.exhaustPile.push(card);
+    if (card.draw) drawToHand(state, card.draw);
+    return state;
+  }
+
+  // Draw
+  if (card.draw) {
+    drawToHand(state, card.draw);
+  }
+
+  state.discardPile.push(card);
+  return state;
+}
+
+export function endPlayerTurn(state) {
+  // Apply power effects
+  state.powers.forEach(p => {
+    if (p.type === 'poisonAll') {
+      state.enemies.forEach(e => {
+        if (e.hp > 0) e.poison = (e.poison || 0) + p.value;
+      });
+    }
+  });
+
+  // Discard hand
+  state.discardPile.push(...state.hand);
+  state.hand = [];
+
+  // Enemy turn
+  state.enemies.forEach(enemy => {
+    if (enemy.hp <= 0) return;
+
+    // Apply poison
+    if (enemy.poison > 0) {
+      enemy.hp -= enemy.poison;
+      enemy.poison--;
+    }
+    if (enemy.hp <= 0) return;
+
+    // Reset enemy block
+    enemy.block = 0;
+
+    const move = enemy.intent;
+    if (!move) return;
+
+    switch (move.type) {
+      case 'attack': {
+        const dmg = calcDamage(move.damage, enemy, state.player);
+        applyDamage(state.player, dmg);
+        break;
+      }
+      case 'defend':
+        enemy.block += move.block || 0;
