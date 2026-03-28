@@ -1,0 +1,65 @@
+# src/logic/mapGenerator.js
+export function generateMap() {
+  const nodes = [];
+  let id = 0;
+  const floorsCount = 15;
+  const nodesPerFloor = [3, 3, 4, 3, 3, 4, 3, 3, 4, 3, 3, 3, 2, 2, 1];
+
+  for (let floor = 0; floor < floorsCount; floor++) {
+    const count = nodesPerFloor[floor] || 3;
+    for (let i = 0; i < count; i++) {
+      let type;
+      if (floor === floorsCount - 1) {
+        type = 'boss';
+      } else if (floor === 0) {
+        type = 'combat';
+      } else {
+        const roll = Math.random();
+        if (floor === 8) type = 'rest';
+        else if (roll < 0.45) type = 'combat';
+        else if (roll < 0.60) type = 'elite';
+        else if (roll < 0.75) type = 'event';
+        else if (roll < 0.85) type = 'shop';
+        else type = 'rest';
+      }
+      nodes.push({ id: id++, floor, type, connections: [], visited: false });
+    }
+  }
+
+  // Connect floors
+  for (let floor = 0; floor < floorsCount - 1; floor++) {
+    const currentFloor = nodes.filter(n => n.floor === floor);
+    const nextFloor = nodes.filter(n => n.floor === floor + 1);
+    
+    currentFloor.forEach((node, ni) => {
+      // Each node connects to 1-2 nodes on next floor
+      const primaryIdx = Math.min(ni, nextFloor.length - 1);
+      node.connections.push(nextFloor[primaryIdx].id);
+      
+      // Sometimes add a second connection
+      if (Math.random() < 0.5 && nextFloor.length > 1) {
+        const altIdx = Math.min(primaryIdx + 1, nextFloor.length - 1);
+        if (!node.connections.includes(nextFloor[altIdx].id)) {
+          node.connections.push(nextFloor[altIdx].id);
+        }
+      }
+      if (Math.random() < 0.3 && primaryIdx > 0) {
+        const altIdx = primaryIdx - 1;
+        if (!node.connections.includes(nextFloor[altIdx].id)) {
+          node.connections.push(nextFloor[altIdx].id);
+        }
+      }
+    });
+
+    // Ensure every next-floor node has at least one incoming
+    nextFloor.forEach(nn => {
+      const hasIncoming = currentFloor.some(cn => cn.connections.includes(nn.id));
+      if (!hasIncoming) {
+        const randomParent = currentFloor[Math.floor(Math.random() * currentFloor.length)];
+        randomParent.connections.push(nn.id);
+      }
+    });
+  }
+
+  return nodes;
+}
