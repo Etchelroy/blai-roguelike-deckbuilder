@@ -1,0 +1,40 @@
+# src/data/events.js
+export const events = [
+  {
+    name: 'Mysterious Shrine',
+    description: 'A glowing shrine pulses with energy. You feel drawn to it.',
+    choices: [
+      { text: 'Pray (Heal 15 HP)', effect: { type: 'heal', value: 15 } },
+      { text: 'Smash it (Gain 30 gold)', effect: { type: 'gold', value: 30 } },
+      { text: 'Leave', effect: null },
+    ]
+  },
+  {
+    name: 'Wandering Merchant',
+    description: 'A hooded figure offers you a strange potion.',
+    choices: [
+      { text: 'Drink it (Random: heal 20 or lose 5 HP)', effect: { type: 'gamble_heal', heal: 20, damage: 5 } },
+      { text: 'Decline', effect: null },
+    ]
+  },
+  {
+    name: 'Ancient Library',
+    description: 'Dusty tomes line the walls. Knowledge is power.',
+    choices: [
+      { text: 'Study (+2 Strength for next combat... gain 20 gold)', effect: { type: 'gold', value: 20 } },
+      { text: 'Burn it down (Gain 50 gold, lose 8 HP)', effect: { type: 'gold_damage', gold: 50, damage: 8 } },
+    ]
+  },
+  {
+    name: 'Forgotten Altar',
+    description: 'An altar covered in dried blood. An offering might yield power.',
+    choices: [
+      { text: 'Offer blood (Lose 10 HP, gain 40 gold)', effect: { type: 'gold_damage', gold: 40, damage: 10 } },
+      { text: 'Walk away', effect: null },
+    ]
+  }
+];
+
+export function getRandomEvent() {
+  return { ...events[Math.floor(Math.random() * events.length)] };
+}
