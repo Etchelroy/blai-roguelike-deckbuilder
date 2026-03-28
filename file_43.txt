@@ -1,0 +1,62 @@
+# src/logic/mapGenerator.js
+const NODE_TYPES = ['combat', 'combat', 'combat', 'elite', 'event', 'rest', 'shop'];
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+export function generateMap(floors = 15) {
+  const map = [];
+  
+  // Floor 0: start nodes
+  const startCount = 2 + Math.floor(Math.random() * 2);
+  map.push(Array.from({ length: startCount }, () => ({ type: 'combat', connections: [] })));
+  
+  for (let f = 1; f < floors - 1; f++) {
+    const nodeCount = 2 + Math.floor(Math.random() * 3);
+    let type;
+    if (f === Math.floor(floors / 2)) type = 'rest';
+    else if (f >= floors - 3 && f < floors - 1) type = pick(['combat', 'elite', 'elite']);
+    else type = pick(NODE_TYPES);
+    
+    const floorNodes = Array.from({ length: nodeCount }, () => ({ type, connections: [] }));
+    // Vary types
+    if (nodeCount > 1) {
+      floorNodes.forEach((n, i) => {
+        if (i > 0 && Math.random() > 0.5) n.type = pick(NODE_TYPES);
+      });
+    }
+    map.push(floorNodes);
+  }
+  
+  // Final floor: boss
+  map.push([{ type: 'boss', connections: [] }]);
+  
+  // Create connections
+  for (let f = 0; f < map.length - 1; f++) {
+    const curr = map[f];
+    const next = map[f + 1];
+    curr.forEach((node, i) => {
+      // Each node connects to at least one node in next floor
+      const primary = Math.min(i, next.length - 1);
+      node.connections.push(primary);
+      // Maybe add adjacent connection
+      if (Math.random() > 0.5 && primary + 1 < next.length) {
+        node.connections.push(primary + 1);
+      }
+      if (Math.random() > 0.5 && primary - 1 >= 0 && !node.connections.includes(primary - 1)) {
+        node.connections.push(primary - 1);
+      }
+      node.connections = [...new Set(node.connections)].sort();
+    });
+    // Ensure every next node is reachable
+    next.forEach((_, ni) => {
+      const hasParent = curr.some(n => n.connections.includes(ni));
+      if (!hasParent) {
+        const parent = Math.min(ni, curr.length - 1);
+        curr[parent].connections.push(ni);
+        curr[parent].connections = [...new Set(curr[parent].connections)].sort();
+      }
+    });
+  }
+  
+  return map;
+}
