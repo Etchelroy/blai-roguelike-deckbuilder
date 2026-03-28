@@ -1,0 +1,20 @@
+# src/components/Card.jsx
+import React from 'react';
+
+export default function Card({ card, onClick, disabled, small }) {
+  const typeColors = { attack: '#c44', skill: '#48c', power: '#c84' };
+  const borderColor = typeColors[card.type] || '#888';
+  
+  return (
+    <div
+      className={`card ${small ? 'card-small' : ''} ${disabled ? 'card-disabled' : ''} ${card.upgraded ? 'card-upgraded' : ''}`}
+      onClick={() => !disabled && onClick && onClick(card)}
+      style={{ borderColor, cursor: disabled ? 'default' : 'pointer' }}
+    >
+      <div className="card-cost">{card.cost}</div>
+      <div className="card-name">{card.name}{card.upgraded ? '+' : ''}</div>
+      <div className="card-type">{card.type}</div>
+      <div className="card-desc">{card.description}</div>
+    </div>
+  );
+}
