@@ -1,0 +1,28 @@
+# src/components/Shop.jsx
+import React from 'react';
+import Card from './Card';
+
+export default function Shop({ shopCards, gold, deck, onBuy, onRemove, onLeave }) {
+  return (
+    <div className="shop-screen">
+      <h2>🛒 Shop</h2>
+      <p>Gold: {gold}💰</p>
+      <h3>Cards for sale:</h3>
+      <div className="shop-cards">
+        {shopCards.map((item, i) => (
+          <div key={i} className="shop-item">
+            <Card card={item.card} onClick={() => onBuy(i)} disabled={gold < item.price} small />
+            <div className="shop-price">{item.price}💰</div>
+          </div>
+        ))}
+      </div>
+      <h3>Remove a card (50💰):</h3>
+      <div className="shop-remove">
+        {deck.map((card, i) => (
+          <Card key={i} card={card} onClick={() => onRemove(i)} disabled={gold < 50} small />
+        ))}
+      </div>
+      <button onClick={onLeave}>Leave Shop</button>
+    </div>
+  );
+}
