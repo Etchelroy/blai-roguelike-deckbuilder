@@ -1,0 +1,22 @@
+# src/components/GameOver.jsx
+import React from 'react';
+
+export default function GameOver({ victory, player, deck, floorsCleared, onRestart }) {
+  return (
+    <div className="gameover-screen">
+      <h1>{victory ? '🏆 Victory!' : '💀 Defeat'}</h1>
+      <div className="run-summary">
+        <h3>Run Summary</h3>
+        <p>HP: {Math.max(0, player.hp)}/{player.maxHp}</p>
+        <p>Floors Cleared: {floorsCleared}</p>
+        <p>Final Deck ({deck.length} cards):</p>
+        <div className="summary-deck">
+          {deck.map((c, i) => (
+            <span key={i} className="summary-card">{c.name}{c.upgraded ? '+' : ''}</span>
+          ))}
+        </div>
+      </div>
+      <button className="restart-btn" onClick={onRestart}>New Run</button>
+    </div>
+  );
+}
