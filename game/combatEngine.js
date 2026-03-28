@@ -64,3 +64,27 @@ window.CombatEngine = {
       s.log.push('Noxious Fumes applies ' + s.playerPowersActive.noxious_fumes + ' Poison to all enemies.');
     }
     s = this.drawCards(s, 
+
+
+# filename: package.json
+```json
+{
+  "name": "spire-like",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "vite": "^5.0.0"
+  }
+}
