@@ -1,0 +1,36 @@
+# src/components/RestSite.jsx
+import React from 'react';
+import Card from './Card';
+
+export default function RestSite({ player, deck, onRest, onUpgrade, onLeave }) {
+  const [upgrading, setUpgrading] = React.useState(false);
+  const upgradeable = deck.filter(c => !c.upgraded);
+
+  return (
+    <div className="rest-screen">
+      <h2>🔥 Rest Site</h2>
+      <p>❤️ HP: {player.hp}/{player.maxHp}</p>
+      {!upgrading ? (
+        <div className="rest-options">
+          <button onClick={() => { onRest(); }} className="rest-btn">
+            Rest (Heal {Math.floor(player.maxHp * 0.3)} HP)
+          </button>
+          <button onClick={() => setUpgrading(true)} className="rest-btn" disabled={upgradeable.length === 0}>
+            Smith (Upgrade a Card)
+          </button>
+          <button onClick={onLeave} className="rest-btn">Leave</button>
+        </div>
+      ) : (
+        <div className="upgrade-select">
+          <h3>Select a card to upgrade:</h3>
+          <div className="upgrade-cards">
+            {upgradeable.map((card, i) => (
+              <Card key={i} card={card} playable={true} onClick={() => { onUpgrade(card); setUpgrading(false); }} />
+            ))}
+          </div>
+          <button onClick={() => setUpgrading(false)}>Cancel</button>
+        </div>
+      )}
+    </div>
+  );
+}
