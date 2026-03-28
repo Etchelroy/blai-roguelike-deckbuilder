@@ -1,0 +1,67 @@
+# src/data/enemies.js
+export const enemies = {
+  slime: {
+    name: 'Slime',
+    id: 'slime',
+    hp: 28,
+    moveset: [
+      { type: 'attack', value: 8 },
+      { type: 'defend', value: 6 },
+      { type: 'attack', value: 5 },
+    ]
+  },
+  goblin: {
+    name: 'Goblin',
+    id: 'goblin',
+    hp: 24,
+    moveset: [
+      { type: 'attack', value: 6 },
+      { type: 'attack', value: 9 },
+      { type: 'debuff', effect: 'weak', value: 1 },
+    ]
+  },
+  cultist: {
+    name: 'Cultist',
+    id: 'cultist',
+    hp: 48,
+    moveset: [
+      { type: 'buff', value: 3 },
+      { type: 'attack', value: 6 },
+      { type: 'attack', value: 6 },
+    ]
+  },
+  fungi: {
+    name: 'Fungi Beast',
+    id: 'fungi',
+    hp: 36,
+    moveset: [
+      { type: 'attack', value: 6 },
+      { type: 'buff', value: 3 },
+      { type: 'attack', value: 10 },
+    ]
+  },
+  guardian: {
+    name: 'The Guardian',
+    id: 'guardian',
+    hp: 120,
+    moveset: [
+      { type: 'attack', value: 12 },
+      { type: 'defend', value: 12 },
+      { type: 'attack', value: 8 },
+      { type: 'buff', value: 4 },
+      { type: 'attack', value: 16 },
+    ]
+  }
+};
+
+export function getEnemiesForType(type, floor) {
+  if (type === 'boss') return [{ ...enemies.guardian }];
+  if (type === 'elite') {
+    const elites = [enemies.cultist, enemies.fungi];
+    return [{ ...elites[Math.floor(Math.random() * elites.length)] }];
+  }
+  // Regular combat
+  const pool = [enemies.slime, enemies.goblin];
+  const count = Math.random() > 0.5 ? 2 : 1;
+  return Array.from({ length: count }, () => ({ ...pool[Math.floor(Math.random() * pool.length)] }));
+}
