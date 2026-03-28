@@ -1,0 +1,113 @@
+# src/data/cards.js
+const CARDS = {
+  strike: {
+    id: 'strike', name: 'Strike', type: 'attack', cost: 1, rarity: 'basic',
+    damage: 6, description: 'Deal 6 damage.',
+    upgraded: false,
+    upgrade: { name: 'Strike+', damage: 9, description: 'Deal 9 damage.' },
+  },
+  defend: {
+    id: 'defend', name: 'Defend', type: 'skill', cost: 1, rarity: 'basic',
+    block: 5, description: 'Gain 5 block.',
+    upgraded: false,
+    upgrade: { name: 'Defend+', block: 8, description: 'Gain 8 block.' },
+  },
+  bash: {
+    id: 'bash', name: 'Bash', type: 'attack', cost: 2, rarity: 'basic',
+    damage: 8, vulnerable: 2, description: 'Deal 8 damage. Apply 2 Vulnerable.',
+    upgraded: false,
+    upgrade: { name: 'Bash+', damage: 10, vulnerable: 3, description: 'Deal 10 damage. Apply 3 Vulnerable.' },
+  },
+  cleave: {
+    id: 'cleave', name: 'Cleave', type: 'attack', cost: 1, rarity: 'common',
+    damage: 8, aoe: true, description: 'Deal 8 damage to ALL enemies.',
+    upgraded: false,
+    upgrade: { name: 'Cleave+', damage: 11, description: 'Deal 11 damage to ALL enemies.' },
+  },
+  ironWave: {
+    id: 'ironWave', name: 'Iron Wave', type: 'attack', cost: 1, rarity: 'common',
+    damage: 5, block: 5, description: 'Deal 5 damage. Gain 5 block.',
+    upgraded: false,
+    upgrade: { name: 'Iron Wave+', damage: 7, block: 7, description: 'Deal 7 damage. Gain 7 block.' },
+  },
+  poisonStab: {
+    id: 'poisonStab', name: 'Poison Stab', type: 'attack', cost: 1, rarity: 'common',
+    damage: 3, poison: 3, description: 'Deal 3 damage. Apply 3 Poison.',
+    upgraded: false,
+    upgrade: { name: 'Poison Stab+', damage: 4, poison: 5, description: 'Deal 4 damage. Apply 5 Poison.' },
+  },
+  shieldBash: {
+    id: 'shieldBash', name: 'Shield Bash', type: 'skill', cost: 2, rarity: 'common',
+    block: 12, description: 'Gain 12 block.',
+    upgraded: false,
+    upgrade: { name: 'Shield Bash+', block: 16, description: 'Gain 16 block.' },
+  },
+  inflame: {
+    id: 'inflame', name: 'Inflame', type: 'power', cost: 1, rarity: 'uncommon',
+    strength: 2, description: 'Gain 2 Strength.',
+    upgraded: false,
+    upgrade: { name: 'Inflame+', strength: 3, description: 'Gain 3 Strength.' },
+  },
+  bodySlam: {
+    id: 'bodySlam', name: 'Body Slam', type: 'attack', cost: 1, rarity: 'uncommon',
+    bodySlam: true, description: 'Deal damage equal to your block.',
+    upgraded: false,
+    upgrade: { name: 'Body Slam+', cost: 0, description: 'Deal damage equal to your block.' },
+  },
+  shrug: {
+    id: 'shrug', name: 'Shrug It Off', type: 'skill', cost: 1, rarity: 'common',
+    block: 8, draw: 1, description: 'Gain 8 block. Draw 1 card.',
+    upgraded: false,
+    upgrade: { name: 'Shrug It Off+', block: 11, draw: 1, description: 'Gain 11 block. Draw 1 card.' },
+  },
+  heavyBlow: {
+    id: 'heavyBlow', name: 'Heavy Blow', type: 'attack', cost: 2, rarity: 'common',
+    damage: 14, description: 'Deal 14 damage.',
+    upgraded: false,
+    upgrade: { name: 'Heavy Blow+', damage: 18, description: 'Deal 18 damage.' },
+  },
+  weaken: {
+    id: 'weaken', name: 'Weaken', type: 'skill', cost: 0, rarity: 'common',
+    weak: 2, description: 'Apply 2 Weak.',
+    upgraded: false,
+    upgrade: { name: 'Weaken+', weak: 3, description: 'Apply 3 Weak.' },
+  },
+  noxiousFumes: {
+    id: 'noxiousFumes', name: 'Noxious Fumes', type: 'power', cost: 1, rarity: 'uncommon',
+    poisonAll: 2, description: 'At end of turn, apply 2 Poison to ALL enemies.',
+    upgraded: false,
+    upgrade: { name: 'Noxious Fumes+', poisonAll: 3, description: 'At end of turn, apply 3 Poison to ALL enemies.' },
+  },
+  pommelStrike: {
+    id: 'pommelStrike', name: 'Pommel Strike', type: 'attack', cost: 1, rarity: 'common',
+    damage: 5, draw: 1, description: 'Deal 5 damage. Draw 1 card.',
+    upgraded: false,
+    upgrade: { name: 'Pommel Strike+', damage: 7, draw: 2, description: 'Deal 7 damage. Draw 2 cards.' },
+  },
+};
+
+export const ALL_CARDS = Object.values(CARDS);
+
+export function getStarterDeck() {
+  const deck = [];
+  for (let i = 0; i < 5; i++) deck.push({ ...CARDS.strike });
+  for (let i = 0; i < 4; i++) deck.push({ ...CARDS.defend });
+  deck.push({ ...CARDS.bash });
+  return deck;
+}
+
+export function getRandomCards(count) {
+  const pool = ALL_CARDS.filter(c => c.rarity !== 'basic');
+  const result = [];
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  for (let i = 0; i < Math.min(count, shuffled.length); i++) {
+    result.push({ ...shuffled[i] });
+  }
+  return result;
+}
+
+export function upgradeCard(card) {
+  if (card.upgraded || !card.upgrade) return card;
+  const upgraded = { ...card, ...card.upgrade, upgraded: true };
+  return upgraded;
+}
