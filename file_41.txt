@@ -1,0 +1,29 @@
+# src/logic/statusEffects.js
+export function applyStartOfTurnEffects(entity) {
+  const e = { ...entity, effects: { ...entity.effects } };
+  // Poison deals damage and decreases
+  if (e.effects.poison > 0) {
+    e.hp -= e.effects.poison;
+    e.effects.poison -= 1;
+  }
+  return e;
+}
+
+export function applyEndOfTurnEffects(entity) {
+  const e = { ...entity, effects: { ...entity.effects } };
+  if (e.effects.weak > 0) e.effects.weak -= 1;
+  if (e.effects.vulnerable > 0) e.effects.vulnerable -= 1;
+  return e;
+}
+
+export function calcAttackDamage(base, attacker, defender) {
+  let dmg = base;
+  if (attacker.effects && attacker.effects.strength) dmg += attacker.effects.strength;
+  if (attacker.effects && attacker.effects.weak > 0) dmg = Math.floor(dmg * 0.75);
+  if (defender.effects && defender.effects.vulnerable > 0) dmg = Math.floor(dmg * 1.5);
+  return Math.max(0, dmg);
+}
+
+export function defaultEffects() {
+  return { poison: 0, weak: 0, vulnerable: 0, strength: 0 };
+}
