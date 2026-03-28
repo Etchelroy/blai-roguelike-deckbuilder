@@ -187,3 +187,4 @@ export default function App() {
       
       {game.phase==='combat' && (
         
+Looking at the previous shifts, the core files exist but I need to review what's actually implemented and fill in gaps. Let me build out the remaining components and ensure all checklist items are met.
