@@ -1,0 +1,81 @@
+# src/components/Combat.jsx
+import React from 'react';
+import Card from './Card';
+
+export default function Combat({ state, onPlayCard, onEndTurn }) {
+  const { player, enemies, hand, drawPile, discardPile, exhaustPile, energy, maxEnergy, turn } = state;
+
+  const intentIcons = {
+    attack: '🗡️',
+    defend: '🛡️',
+    buff: '💪',
+    debuff: '🔮',
+    special: '⭐',
+  };
+
+  return (
+    <div className="combat-screen">
+      <div className="combat-top">
+        <div className="enemies-row">
+          {enemies.map((enemy, i) => (
+            <div key={i} className={`enemy-card ${enemy.hp <= 0 ? 'dead' : ''}`}>
+              <div className="enemy-img">
+                <img src={`https://picsum.photos/seed/${enemy.name}/80/80`} alt={enemy.name} />
+              </div>
+              <div className="enemy-name">{enemy.name}</div>
+              <div className="enemy-hp">
+                ❤️ {Math.max(0, enemy.hp)}/{enemy.maxHp}
+                {enemy.block > 0 && <span className="block"> 🛡️{enemy.block}</span>}
+              </div>
+              {enemy.hp > 0 && enemy.intent && (
+                <div className="enemy-intent">
+                  {intentIcons[enemy.intent.type] || '❓'} 
+                  {enemy.intent.type === 'attack' && ` ${enemy.intent.damage}`}
+                  {enemy.intent.type === 'defend' && ` +${enemy.intent.block}`}
+                </div>
+              )}
+              <div className="enemy-statuses">
+                {enemy.poison > 0 && <span className="status poison">☠️{enemy.poison}</span>}
+                {enemy.weak > 0 && <span className="status weak">😵{enemy.weak}</span>}
+                {enemy.vulnerable > 0 && <span className="status vuln">🎯{enemy.vulnerable}</span>}
+                {enemy.strength > 0 && <span className="status str">💪{enemy.strength}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="combat-mid">
+        <div className="player-info">
+          <div className="player-hp">❤️ {player.hp}/{player.maxHp}</div>
+          {player.block > 0 && <div className="player-block">🛡️ {player.block}</div>}
+          <div className="player-energy">⚡ {energy}/{maxEnergy}</div>
+          <div className="player-statuses">
+            {player.poison > 0 && <span className="status poison">☠️{player.poison}</span>}
+            {player.weak > 0 && <span className="status weak">😵{player.weak}</span>}
+            {player.vulnerable > 0 && <span className="status vuln">🎯{player.vulnerable}</span>}
+            {player.strength > 0 && <span className="status str">💪{player.strength}</span>}
+          </div>
+        </div>
+        <div className="pile-info">
+          <span>📚 Draw: {drawPile.length}</span>
+          <span>♻️ Discard: {discardPile.length}</span>
+          <span>🚫 Exhaust: {exhaustPile.length}</span>
+        </div>
+      </div>
+
+      <div className="hand-row">
+        {hand.map((card, i) => (
+          <Card
+            key={i}
+            card={card}
+            playable={energy >= card.cost && !card.unplayable}
+            onClick={() => energy >= card.cost && onPlayCard(i, 0)}
+          />
+        ))}
+      </div>
+
+      <button className="end-turn-btn" onClick={onEndTurn}>End Turn</button>
+    </div>
+  );
+}
