@@ -1,0 +1,75 @@
+# src/components/Combat.jsx
+import React from 'react';
+import Card from './Card';
+
+const intentIcons = { attack: '🗡️', defend: '🛡️', buff: '💪', debuff: '☠️', special: '⭐' };
+
+function StatusEffects({ effects }) {
+  if (!effects) return null;
+  const display = [];
+  if (effects.poison > 0) display.push(`🟢${effects.poison}`);
+  if (effects.weak > 0) display.push(`🔵${effects.weak}`);
+  if (effects.vulnerable > 0) display.push(`🔴${effects.vulnerable}`);
+  if (effects.strength > 0) display.push(`💪${effects.strength}`);
+  if (display.length === 0) return null;
+  return <div className="status-effects">{display.join(' ')}</div>;
+}
+
+export default function Combat({ state, onPlayCard, onEndTurn }) {
+  const { player, enemies, hand, drawPile, discardPile, exhaustPile, energy, maxEnergy, turn } = state;
+
+  return (
+    <div className="combat-screen">
+      <div className="combat-top">
+        <div className="enemies-row">
+          {enemies.map((e, i) => (
+            <div key={i} className={`enemy ${e.hp <= 0 ? 'enemy-dead' : ''}`}>
+              <div className="enemy-intent">
+                {e.hp > 0 && e.currentIntent && (
+                  <span>{intentIcons[e.currentIntent.type] || '?'} {e.currentIntent.type === 'attack' ? `${e.currentIntent.value} dmg` : e.currentIntent.type}</span>
+                )}
+              </div>
+              <div className="enemy-sprite" style={{ backgroundImage: `url(https://picsum.photos/seed/${e.id}/80/80)` }}></div>
+              <div className="enemy-name">{e.name}</div>
+              <div className="enemy-hp">
+                <div className="hp-bar">
+                  <div className="hp-fill" style={{ width: `${Math.max(0, e.hp / e.maxHp * 100)}%` }}></div>
+                </div>
+                <span>{Math.max(0, e.hp)}/{e.maxHp}</span>
+              </div>
+              {e.block > 0 && <div className="enemy-block">🛡️{e.block}</div>}
+              <StatusEffects effects={e.effects} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="combat-middle">
+        <div className="player-info">
+          <div className="player-hp">
+            <div className="hp-bar hp-bar-player">
+              <div className="hp-fill" style={{ width: `${player.hp / player.maxHp * 100}%` }}></div>
+            </div>
+            <span>❤️ {player.hp}/{player.maxHp}</span>
+          </div>
+          {player.block > 0 && <div className="player-block">🛡️{player.block}</div>}
+          <StatusEffects effects={player.effects} />
+          <div className="energy-display">⚡ {energy}/{maxEnergy}</div>
+        </div>
+        <div className="pile-info">
+          <span>Draw: {drawPile.length}</span>
+          <span>Discard: {discardPile.length}</span>
+          <span>Exhaust: {exhaustPile.length}</span>
+        </div>
+      </div>
+
+      <div className="hand-area">
+        {hand.map((card, i) => (
+          <Card key={card.uid || i} card={card} onClick={(c) => onPlayCard(c, 0)} disabled={card.cost > energy} />
+        ))}
+      </div>
+
+      <button className="end-turn-btn" onClick={onEndTurn}>End Turn</button>
+    </div>
+  );
+}
