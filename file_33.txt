@@ -1,0 +1,75 @@
+# src/components/Map.jsx
+import React from 'react';
+
+const nodeIcons = {
+  combat: '⚔️', elite: '💀', event: '❓', shop: '🛒', rest: '🔥', boss: '👹', start: '🏁'
+};
+const nodeColors = {
+  combat: '#c44', elite: '#c4c', event: '#cc4', shop: '#4c4', rest: '#4cc', boss: '#c44', start: '#888'
+};
+
+export default function Map({ map, currentNode, onSelectNode }) {
+  if (!map || map.length === 0) return null;
+  
+  const availableNodes = [];
+  if (currentNode === null) {
+    map[0].forEach((_, i) => availableNodes.push(`0-${i}`));
+  } else {
+    const [floor, idx] = currentNode.split('-').map(Number);
+    const node = map[floor][idx];
+    if (node.connections) {
+      node.connections.forEach(c => availableNodes.push(`${floor + 1}-${c}`));
+    }
+  }
+
+  const maxPerFloor = Math.max(...map.map(f => f.length));
+  const floorHeight = 70;
+  const nodeSpacing = 100;
+  const svgWidth = maxPerFloor * nodeSpacing + 60;
+  const svgHeight = map.length * floorHeight + 40;
+
+  return (
+    <div className="map-container">
+      <h2>Map</h2>
+      <svg width={svgWidth} height={svgHeight} style={{ display: 'block', margin: '0 auto' }}>
+        {map.map((floor, fi) =>
+          floor.map((node, ni) => {
+            const x = (svgWidth / 2) + (ni - (floor.length - 1) / 2) * nodeSpacing;
+            const y = (map.length - 1 - fi) * floorHeight + 30;
+            return (node.connections || []).map(ci => {
+              const nextFloor = map[fi + 1];
+              if (!nextFloor) return null;
+              const nx = (svgWidth / 2) + (ci - (nextFloor.length - 1) / 2) * nodeSpacing;
+              const ny = (map.length - 2 - fi) * floorHeight + 30;
+              return <line key={`${fi}-${ni}-${ci}`} x1={x} y1={y} x2={nx} y2={ny} stroke="#555" strokeWidth="2" />;
+            });
+          })
+        )}
+        {map.map((floor, fi) =>
+          floor.map((node, ni) => {
+            const x = (svgWidth / 2) + (ni - (floor.length - 1) / 2) * nodeSpacing;
+            const y = (map.length - 1 - fi) * floorHeight + 30;
+            const key = `${fi}-${ni}`;
+            const isAvailable = availableNodes.includes(key);
+            const isCurrent = currentNode === key;
+            const isPast = currentNode !== null && fi < parseInt(currentNode.split('-')[0]);
+            return (
+              <g key={key} onClick={() => isAvailable ? onSelectNode(fi, ni) : null} style={{ cursor: isAvailable ? 'pointer' : 'default' }}>
+                <circle cx={x} cy={y} r={20}
+                  fill={isCurrent ? '#fff' : isPast ? '#333' : isAvailable ? nodeColors[node.type] : '#222'}
+                  stroke={isAvailable ? '#fff' : isCurrent ? '#ff0' : '#555'} strokeWidth={isAvailable || isCurrent ? 3 : 1}
+                  opacity={isPast && !isCurrent ? 0.4 : 1} />
+                <text x={x} y={y + 5} textAnchor="middle" fontSize="16">{nodeIcons[node.type] || '?'}</text>
+              </g>
+            );
+          })
+        )}
+      </svg>
+      <div className="map-legend">
+        {Object.entries(nodeIcons).filter(([k]) => k !== 'start').map(([k, v]) => (
+          <span key={k} style={{ marginRight: 12 }}>{v} {k}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
