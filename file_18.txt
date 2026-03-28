@@ -1,0 +1,69 @@
+# src/components/Map.jsx
+import React from 'react';
+
+export default function Map({ map, currentNode, onSelectNode }) {
+  if (!map || !map.length) return <div>Loading map...</div>;
+  
+  const nodeColors = {
+    combat: '#e74c3c',
+    elite: '#e67e22',
+    event: '#9b59b6',
+    shop: '#2ecc71',
+    rest: '#3498db',
+    boss: '#c0392b',
+  };
+  
+  const nodeIcons = {
+    combat: '⚔️',
+    elite: '💀',
+    event: '❓',
+    shop: '🛒',
+    rest: '🔥',
+    boss: '👹',
+  };
+
+  const isSelectable = (node) => {
+    if (!currentNode) return node.floor === 0;
+    if (node.floor !== currentNode.floor + 1) return false;
+    return currentNode.connections && currentNode.connections.includes(node.id);
+  };
+
+  const maxFloor = map.reduce((m, n) => Math.max(m, n.floor), 0);
+  const floors = [];
+  for (let f = 0; f <= maxFloor; f++) {
+    floors.push(map.filter(n => n.floor === f));
+  }
+
+  return (
+    <div className="map-container">
+      <h2>🗺️ Map</h2>
+      <div className="map-scroll">
+        {floors.map((floorNodes, fi) => (
+          <div key={fi} className="map-floor">
+            <span className="floor-label">F{fi}</span>
+            {floorNodes.map(node => {
+              const selectable = isSelectable(node);
+              const visited = node.visited;
+              const current = currentNode && currentNode.id === node.id;
+              return (
+                <button
+                  key={node.id}
+                  className={`map-node ${selectable ? 'selectable' : ''} ${visited ? 'visited' : ''} ${current ? 'current' : ''}`}
+                  style={{ 
+                    backgroundColor: visited ? '#555' : nodeColors[node.type],
+                    opacity: selectable ? 1 : visited ? 0.5 : 0.3
+                  }}
+                  disabled={!selectable}
+                  onClick={() => selectable && onSelectNode(node)}
+                  title={`${node.type} (Floor ${node.floor})`}
+                >
+                  {nodeIcons[node.type]}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
