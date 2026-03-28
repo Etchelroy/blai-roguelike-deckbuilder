@@ -179,3 +179,4 @@ export function endPlayerTurn(state) {
       }
       case 'defend':
         enemy.block += move.block || 0;
+Looking at the previous shifts, the core files are created but I need to examine what's likely missing or incomplete. Let me build out the remaining component files and any fixes needed to make everything work as a complete game.
